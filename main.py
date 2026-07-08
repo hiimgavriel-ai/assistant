@@ -5,6 +5,7 @@ import logging
 import sys
 from zoneinfo import ZoneInfo
 
+from telegram import BotCommand
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
@@ -22,6 +23,22 @@ logging.basicConfig(
     stream=sys.stdout,
 )
 logger = logging.getLogger(__name__)
+
+
+async def post_init(application) -> None:
+    """Set the bot's command menu via the Telegram API after startup."""
+    await application.bot.set_my_commands(
+        [
+            BotCommand("add", "Add a task"),
+            BotCommand("list", "See all open tasks"),
+            BotCommand("braindump", "Bulk-capture tasks from text"),
+            BotCommand("note", "Save something to remember"),
+            BotCommand("ask", "Ask about history or upcoming events"),
+            BotCommand("planevent", "Add a calendar event"),
+            BotCommand("agenda", "What's coming up"),
+        ]
+    )
+    logger.info("Bot command menu set via set_my_commands.")
 
 
 def main() -> None:
@@ -51,23 +68,31 @@ def main() -> None:
 
     init_calendar_handlers(config)
 
+    from handlers.brain import init_brain
+
+    init_brain(config)
+
     # ── 3. Build the Application ────────────────────────────────────
-    app = Application.builder().token(config.telegram_bot_token).build()
+    app = (
+        Application.builder()
+        .token(config.telegram_bot_token)
+        .post_init(post_init)
+        .build()
+    )
 
     # ── 4. Register handlers ────────────────────────────────────────
     from handlers.security import chatid_cmd, help_cmd, welcome_new_member
     from handlers.tasks import (
+        add_cmd,
         braindump_cancel_callback,
         braindump_cmd,
         braindump_save_callback,
         done_cmd,
-        task_cmd,
+        list_cmd,
         task_done_callback,
-        tasks_cmd,
     )
     from handlers.brain import (
         ask_cmd,
-        decision_cmd,
         log_message,
         note_cmd,
     )
@@ -80,11 +105,10 @@ def main() -> None:
 
     # Group 0 — command handlers
     app.add_handler(CommandHandler("chatid", chatid_cmd))
-    app.add_handler(CommandHandler("task", task_cmd))
-    app.add_handler(CommandHandler("tasks", tasks_cmd))
+    app.add_handler(CommandHandler("add", add_cmd))
+    app.add_handler(CommandHandler("list", list_cmd))
     app.add_handler(CommandHandler("done", done_cmd))
     app.add_handler(CommandHandler("note", note_cmd))
-    app.add_handler(CommandHandler("decision", decision_cmd))
     app.add_handler(CommandHandler("ask", ask_cmd))
     app.add_handler(CommandHandler("planevent", planevent_cmd))
     app.add_handler(CommandHandler("agenda", agenda_cmd))

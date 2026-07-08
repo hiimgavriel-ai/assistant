@@ -1,4 +1,4 @@
-"""Task management handlers — /task, /tasks, /done, /braindump and callbacks."""
+"""Task management handlers — /add, /list, /done, /braindump and callbacks."""
 
 import logging
 from datetime import datetime, timezone as _tz
@@ -68,14 +68,14 @@ def _build_task_list_message(
     return "\n".join(lines), InlineKeyboardMarkup(keyboard)
 
 
-# ── /task ────────────────────────────────────────────────────────────────
+# ── /add ─────────────────────────────────────────────────────────────────
 
 
 @safe_handler
 @whitelist_only
-async def task_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """/task <text>  — create a task.
-    Replying to a message with just /task promotes that message into a task.
+async def add_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/add <text>  — create a task.
+    Replying to a message with just /add promotes that message into a task.
     """
     text = " ".join(context.args) if context.args else ""
 
@@ -86,8 +86,8 @@ async def task_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not text.strip():
         await update.message.reply_text(
             "Usage:\n"
-            "• /task <description>\n"
-            "• Reply to any message with /task"
+            "• /add <description>\n"
+            "• Reply to any message with /add"
         )
         return
 
@@ -109,13 +109,13 @@ async def task_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     logger.info("Task #%s created by %s.", task_id, user.full_name)
 
 
-# ── /tasks ───────────────────────────────────────────────────────────────
+# ── /list ────────────────────────────────────────────────────────────────
 
 
 @safe_handler
 @whitelist_only
-async def tasks_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """/tasks — list all open tasks with ✅ Done buttons."""
+async def list_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/list — list all open tasks with ✅ Done buttons."""
     with get_session() as session:
         tasks = list(
             session.execute(

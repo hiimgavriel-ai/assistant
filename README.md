@@ -8,8 +8,8 @@ A production-ready Telegram bot that acts as a shared assistant inside a private
 
 | Category | Commands |
 |----------|----------|
-| **Tasks** | `/task`, `/tasks`, `/done`, `/braindump` |
-| **Second Brain** | `/note`, `/decision`, `/ask` |
+| **Tasks** | `/add`, `/list`, `/done`, `/braindump` |
+| **Memory** | `/note`, `/ask` |
 | **Calendar** | `/planevent`, `/agenda` |
 | **Scheduled** | Daily morning brief, Friday EOD summary |
 | **Utility** | `/chatid`, `/help` |
@@ -35,7 +35,7 @@ A production-ready Telegram bot that acts as a shared assistant inside a private
 2. Send `/newbot` and follow the prompts. Note the **bot token**.
 3. **Turn off Group Privacy**:
    - Send `/mybots` → select your bot → **Bot Settings** → **Group Privacy** → **Turn off**.
-   - ⚠️ **Why?** Group Privacy is ON by default, meaning the bot only sees messages that start with `/` or mention it. The "second brain" feature needs to see _all_ messages to log them. Turning it OFF lets the bot receive every message in the group.
+   - ⚠️ **Why?** Group Privacy is ON by default, meaning the bot only sees messages that start with `/` or mention it. The "memory" feature needs to see _all_ messages to log them. Turning it OFF lets the bot receive every message in the group.
 
 ### 2. Get an OpenAI API Key
 
@@ -128,62 +128,39 @@ Copy the output — this becomes `GOOGLE_SERVICE_ACCOUNT_B64`.
 
 ## Commands Reference
 
-### Utility
-
-```
-/chatid
-```
-Replies with the current chat's integer ID. Works in any chat, even before the whitelist is configured.
-
-```
-/help
-```
-Shows a formatted list of all commands grouped by feature.
-
 ### Tasks
 
 ```
-/task Buy new domain for the project
+/add Buy new domain for the project
 ```
-Creates a new task from the given text.
+Creates a new task from the given text. Reply to any message with `/add` to turn it into a task.
 
 ```
-(reply to any message with)
-/task
-```
-Promotes the replied-to message into a task.
-
-```
-/tasks
+/list
 ```
 Lists all open tasks with ✅ Done buttons. Tap a button to mark the task done.
-
-```
-/done 7
-```
-Marks task #7 as done (text fallback for the button).
 
 ```
 /braindump Gav: research Halloween venues, book catering by Friday. Joy: update the pitch deck, send invoice to ABC Corp
 ```
 Bulk task capture — sends unstructured text to the LLM to extract individual tasks (with assignee, category, due date). Shows a preview and lets you confirm before saving.
 
-### Second Brain
+```
+/done 7
+```
+Marks task #7 as done (text fallback for the inline button). Not shown in the command menu.
+
+### Memory
 
 ```
 /note We agreed to use Stripe for payments
 ```
-Saves a high-signal note.
+Saves a note to the bot's memory.
 
 ```
-/decision Go with the 3-month timeline
+/ask What's on this week?
 ```
-Records a decision.
-
-```
-/ask What payment provider did we choose?
-```
-Answers a question using stored chat history, notes, and decisions via OpenAI.
+Answers a question using stored chat history, notes, and upcoming calendar events via OpenAI.
 
 ### Calendar
 
@@ -241,13 +218,13 @@ main.py                 # Entrypoint: config, app setup, handlers, JobQueue, pol
 config.py               # Load + validate env vars
 db.py                   # SQLAlchemy engine/session, table creation
 models.py               # ORM models (tasks, messages_log, notes)
-llm.py                  # OpenAI SDK: answer_question, parse_event
+llm.py                  # OpenAI SDK: answer_question, parse_event, extract_tasks
 gcal.py                 # Google Calendar: create_event, list_events
 handlers/
   __init__.py           # safe_handler error-wrapping decorator
   security.py           # Whitelist guard, /chatid, /help, welcome message
-  tasks.py              # /task, /tasks, /done, done-button callback
-  brain.py              # Message logging, /ask, /note, /decision
+  tasks.py              # /add, /list, /done, /braindump + callbacks
+  brain.py              # Message logging, /ask, /note
   calendar.py           # /planevent (+ confirm/cancel), /agenda
   briefs.py             # JobQueue morning + Friday briefs
 requirements.txt        # Pinned dependencies

@@ -1,12 +1,17 @@
-"""Second-brain handlers — message logging, /note, /decision, /ask."""
+"""Second-brain handlers — message logging, /note, /ask."""
 
+import asyncio
 import logging
 import re
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import or_, select
 from telegram import Update
 from telegram.ext import ContextTypes
 
+import gcal
+from config import Config
 from db import get_session
 from handlers import safe_handler
 from handlers.security import whitelist_only
@@ -14,6 +19,15 @@ from llm import answer_question
 from models import MessageLog, Note, NoteKind
 
 logger = logging.getLogger(__name__)
+
+_timezone: str = "Asia/Singapore"
+
+
+def init_brain(config: Config) -> None:
+    """Store timezone for calendar context in /ask."""
+    global _timezone
+    _timezone = config.timezone
+
 
 # Common English stop words to exclude from keyword search
 _STOP_WORDS: set[str] = {
@@ -59,43 +73,30 @@ async def log_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         session.commit()
 
 
-# ── /note and /decision ──────────────────────────────────────────────────
+# ── /note ────────────────────────────────────────────────────────────────
 
 
 @safe_handler
 @whitelist_only
 async def note_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """/note <text> — save a high-signal note."""
+    """/note <text> — save a note."""
     text = " ".join(context.args) if context.args else ""
     if not text.strip():
         await update.message.reply_text("Usage: /note <text>")
         return
 
-    _save_note(NoteKind.note, text.strip(), update.effective_user.full_name)
-    await update.message.reply_text("📝 Note saved.")
-    logger.info("Note saved by %s.", update.effective_user.full_name)
-
-
-@safe_handler
-@whitelist_only
-async def decision_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """/decision <text> — save a decision."""
-    text = " ".join(context.args) if context.args else ""
-    if not text.strip():
-        await update.message.reply_text("Usage: /decision <text>")
-        return
-
-    _save_note(NoteKind.decision, text.strip(), update.effective_user.full_name)
-    await update.message.reply_text("⚖️ Decision recorded.")
-    logger.info("Decision saved by %s.", update.effective_user.full_name)
-
-
-def _save_note(kind: NoteKind, content: str, created_by_name: str) -> None:
     with get_session() as session:
         session.add(
-            Note(kind=kind, content=content, created_by_name=created_by_name)
+            Note(
+                kind=NoteKind.note,
+                content=text.strip(),
+                created_by_name=update.effective_user.full_name,
+            )
         )
         session.commit()
+
+    await update.message.reply_text("📝 Note saved.")
+    logger.info("Note saved by %s.", update.effective_user.full_name)
 
 
 # ── /ask ─────────────────────────────────────────────────────────────────
@@ -104,7 +105,7 @@ def _save_note(kind: NoteKind, content: str, created_by_name: str) -> None:
 @safe_handler
 @whitelist_only
 async def ask_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """/ask <question> — answer a question using stored history and notes."""
+    """/ask <question> — answer using stored history, notes, and calendar."""
     question = " ".join(context.args) if context.args else ""
     if not question.strip():
         await update.message.reply_text("Usage: /ask <question>")
@@ -112,13 +113,13 @@ async def ask_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     await update.message.reply_text("🤔 Thinking…")
 
-    ctx = _build_context(question)
+    ctx = await _build_context(question)
     answer = await answer_question(ctx, question)
     await update.message.reply_text(answer)
 
 
-def _build_context(question: str) -> str:
-    """Build the retrieval context: recent messages + keyword matches + all notes."""
+async def _build_context(question: str) -> str:
+    """Build retrieval context: messages + keyword matches + notes + calendar."""
     with get_session() as session:
         # 1) Most recent 400 messages
         recent_stmt = (
@@ -157,6 +158,16 @@ def _build_context(question: str) -> str:
             all_msgs.append(m)
     all_msgs.sort(key=lambda m: m.created_at)
 
+    # 4) Upcoming calendar events (next 30 days)
+    cal_events: list[dict] = []
+    try:
+        tz = ZoneInfo(_timezone)
+        now = datetime.now(tz)
+        end = now + timedelta(days=30)
+        cal_events = await asyncio.to_thread(gcal.list_events, now, end)
+    except Exception:
+        logger.exception("Failed to fetch calendar events for /ask context")
+
     # Format
     parts: list[str] = []
     if all_msgs:
@@ -166,11 +177,23 @@ def _build_context(question: str) -> str:
             parts.append(f"[{ts}] {m.user_name}: {m.text}")
 
     if all_notes:
-        parts.append("\n### Notes & Decisions\n")
+        parts.append("\n### Notes\n")
         for n in all_notes:
             ts = n.created_at.strftime("%Y-%m-%d %H:%M") if n.created_at else ""
             label = "📝 Note" if n.kind == NoteKind.note else "⚖️ Decision"
             parts.append(f"[{ts}] {label} by {n.created_by_name}: {n.content}")
+
+    if cal_events:
+        parts.append("\n### Upcoming Calendar Events\n")
+        for ev in cal_events:
+            summary = ev.get("summary", "(no title)")
+            start_raw = ev.get("start", {})
+            dt_str = start_raw.get("dateTime", start_raw.get("date", ""))
+            location = ev.get("location", "")
+            line = f"• {dt_str} — {summary}"
+            if location:
+                line += f"  📍 {location}"
+            parts.append(line)
 
     return "\n".join(parts) if parts else "(No stored context yet.)"
 
