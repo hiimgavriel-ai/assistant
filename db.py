@@ -2,7 +2,7 @@
 
 import logging
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from config import Config
@@ -24,7 +24,16 @@ def init_db(config: Config) -> None:
     )
     _SessionLocal = sessionmaker(bind=_engine)
     Base.metadata.create_all(_engine)
+    _run_migrations()
     logger.info("Database initialised — tables created (if missing).")
+
+def _run_migrations() -> None:
+    """Add columns that may be missing from older schemas."""
+    with _engine.connect() as conn:
+        conn.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS assignee TEXT"))
+        conn.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS category TEXT"))
+        conn.commit()
+    logger.info("Schema migrations applied.")
 
 
 def get_session() -> Session:

@@ -8,7 +8,7 @@ A production-ready Telegram bot that acts as a shared assistant inside a private
 
 | Category | Commands |
 |----------|----------|
-| **Tasks** | `/task`, `/tasks`, `/done` |
+| **Tasks** | `/task`, `/tasks`, `/done`, `/braindump` |
 | **Second Brain** | `/note`, `/decision`, `/ask` |
 | **Calendar** | `/planevent`, `/agenda` |
 | **Scheduled** | Daily morning brief, Friday EOD summary |
@@ -162,6 +162,11 @@ Lists all open tasks with ✅ Done buttons. Tap a button to mark the task done.
 /done 7
 ```
 Marks task #7 as done (text fallback for the button).
+
+```
+/braindump Gav: research Halloween venues, book catering by Friday. Joy: update the pitch deck, send invoice to ABC Corp
+```
+Bulk task capture — sends unstructured text to the LLM to extract individual tasks (with assignee, category, due date). Shows a preview and lets you confirm before saving.
 
 ### Second Brain
 

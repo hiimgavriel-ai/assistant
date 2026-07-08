@@ -38,6 +38,8 @@ class Task(Base):
         DateTime(timezone=True), server_default=func.now()
     )
     due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    assignee: Mapped[str | None] = mapped_column(Text, nullable=True)
+    category: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[TaskStatus] = mapped_column(
         Enum(TaskStatus), default=TaskStatus.open, nullable=False
     )

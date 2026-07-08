@@ -57,6 +57,9 @@ def main() -> None:
     # ── 4. Register handlers ────────────────────────────────────────
     from handlers.security import chatid_cmd, help_cmd, welcome_new_member
     from handlers.tasks import (
+        braindump_cancel_callback,
+        braindump_cmd,
+        braindump_save_callback,
         done_cmd,
         task_cmd,
         task_done_callback,
@@ -86,11 +89,14 @@ def main() -> None:
     app.add_handler(CommandHandler("planevent", planevent_cmd))
     app.add_handler(CommandHandler("agenda", agenda_cmd))
     app.add_handler(CommandHandler("help", help_cmd))
+    app.add_handler(CommandHandler("braindump", braindump_cmd))
 
     # Inline-button callbacks
     app.add_handler(CallbackQueryHandler(task_done_callback, pattern=r"^task_done:"))
     app.add_handler(CallbackQueryHandler(event_confirm_callback, pattern=r"^evt_create:"))
     app.add_handler(CallbackQueryHandler(event_cancel_callback, pattern=r"^evt_cancel:"))
+    app.add_handler(CallbackQueryHandler(braindump_save_callback, pattern=r"^bd_save:"))
+    app.add_handler(CallbackQueryHandler(braindump_cancel_callback, pattern=r"^bd_cancel:"))
 
     # New-member welcome (group 0)
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_member))

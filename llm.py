@@ -106,3 +106,60 @@ async def parse_event(free_text: str, timezone: str) -> dict | None:
     except Exception:
         logger.exception("Unexpected error in parse_event")
         return None
+
+
+async def extract_tasks(free_text: str) -> list[dict] | None:
+    """Extract individual tasks from an unstructured braindump.
+
+    Returns a list of dicts with keys: description, assignee, category, due_date
+    or None on failure.
+    """
+    if _client is None:
+        return None
+
+    try:
+        response = await _client.chat.completions.create(
+            model=_model,
+            max_tokens=2048,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a task-extraction assistant. The user will provide "
+                        "an unstructured chunk of text that may contain many tasks, "
+                        "possibly grouped by person and by project/board, sometimes "
+                        "with deadlines or budgets in parentheses.\n\n"
+                        "Extract every individual task and return ONLY a JSON array "
+                        "(no markdown, no code fences, no prose). Each element must "
+                        "have these fields:\n"
+                        '  • "description" (string) — concise, one actionable task\n'
+                        '  • "assignee" (string|null) — person\'s name if indicated\n'
+                        '  • "category" (string|null) — project/board label if indicated '
+                        '(e.g. "AN", "AA")\n'
+                        '  • "due_date" (string|null) — ISO date (YYYY-MM-DD) if a '
+                        "deadline is stated or clearly implied, else null\n\n"
+                        "Be thorough — extract every task mentioned. Keep descriptions "
+                        "concise but complete."
+                    ),
+                },
+                {"role": "user", "content": free_text},
+            ],
+        )
+        raw = response.choices[0].message.content.strip()
+        # Defensively strip stray code fences
+        raw = re.sub(r"^```(?:json)?\s*", "", raw)
+        raw = re.sub(r"\s*```$", "", raw)
+        result = json.loads(raw)
+        if not isinstance(result, list):
+            logger.warning("extract_tasks: LLM returned non-list JSON")
+            return None
+        return result
+    except json.JSONDecodeError:
+        logger.warning("Failed to parse extract_tasks response as JSON: %s", raw)
+        return None
+    except openai.APIError:
+        logger.exception("OpenAI API error in extract_tasks")
+        return None
+    except Exception:
+        logger.exception("Unexpected error in extract_tasks")
+        return None
