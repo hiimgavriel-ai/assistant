@@ -22,7 +22,7 @@ A production-ready Telegram bot that acts as a shared assistant inside a private
 - **Postgres** database (Railway provides one automatically)
 - **Telegram Bot** (created via BotFather)
 - **Google Cloud** project with Calendar API enabled
-- **Anthropic API** key
+- **OpenAI API** key
 
 ---
 
@@ -36,10 +36,10 @@ A production-ready Telegram bot that acts as a shared assistant inside a private
    - Send `/mybots` → select your bot → **Bot Settings** → **Group Privacy** → **Turn off**.
    - ⚠️ **Why?** Group Privacy is ON by default, meaning the bot only sees messages that start with `/` or mention it. The "second brain" feature needs to see _all_ messages to log them. Turning it OFF lets the bot receive every message in the group.
 
-### 2. Get an Anthropic API Key
+### 2. Get an OpenAI API Key
 
-1. Go to [console.anthropic.com](https://console.anthropic.com/) → **API Keys** → **Create Key**.
-2. Copy the key — this becomes `ANTHROPIC_API_KEY`.
+1. Go to [platform.openai.com](https://platform.openai.com/) → **API Keys** → **Create new secret key**.
+2. Copy the key — this becomes `OPENAI_API_KEY`.
 
 ### 3. Set Up Google Calendar
 
@@ -87,10 +87,10 @@ Copy the output — this becomes `GOOGLE_SERVICE_ACCOUNT_B64`.
    |----------|-------|
    | `TELEGRAM_BOT_TOKEN` | From BotFather |
    | `ALLOWED_CHAT_ID` | Leave blank for now (see first-run flow below) |
-   | `ANTHROPIC_API_KEY` | From Anthropic console |
+   | `OPENAI_API_KEY` | From OpenAI platform |
    | `GOOGLE_CALENDAR_ID` | From Google Calendar settings |
    | `GOOGLE_SERVICE_ACCOUNT_B64` | Base64-encoded service-account JSON |
-   | `LLM_MODEL` | _(optional)_ Default: `claude-sonnet-4-20250514` |
+   | `LLM_MODEL` | _(optional)_ Default: `gpt-4.1` |
    | `TIMEZONE` | _(optional)_ Default: `Asia/Singapore` |
    | `MORNING_BRIEF_TIME` | _(optional)_ Default: `08:00` |
 
@@ -113,11 +113,11 @@ Copy the output — this becomes `GOOGLE_SERVICE_ACCOUNT_B64`.
 |----------|----------|---------|---------|
 | `TELEGRAM_BOT_TOKEN` | ✅ | — | Bot token from BotFather |
 | `ALLOWED_CHAT_ID` | ✅* | — | Integer chat ID of the allowed group |
-| `ANTHROPIC_API_KEY` | ✅ | — | Anthropic API key for LLM calls |
+| `OPENAI_API_KEY` | ✅ | — | OpenAI API key for LLM calls |
 | `GOOGLE_CALENDAR_ID` | ✅ | — | Target Google Calendar ID |
 | `GOOGLE_SERVICE_ACCOUNT_B64` | ✅ | — | Base64-encoded service-account JSON key |
 | `DATABASE_URL` | ✅ | — | Postgres connection string (Railway auto-injects) |
-| `LLM_MODEL` | ❌ | `claude-sonnet-4-20250514` | Anthropic model identifier |
+| `LLM_MODEL` | ❌ | `gpt-4.1` | OpenAI model identifier |
 | `TIMEZONE` | ❌ | `Asia/Singapore` | IANA timezone for scheduling |
 | `MORNING_BRIEF_TIME` | ❌ | `08:00` | HH:MM 24h local time for the morning brief |
 
@@ -172,7 +172,7 @@ Records a decision.
 ```
 /ask What payment provider did we choose?
 ```
-Answers a question using stored chat history, notes, and decisions via Claude.
+Answers a question using stored chat history, notes, and decisions via OpenAI.
 
 ### Calendar
 

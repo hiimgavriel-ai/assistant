@@ -18,7 +18,7 @@ class Config:
         # ── Required variables ──────────────────────────────────────────
         required = [
             "TELEGRAM_BOT_TOKEN",
-            "ANTHROPIC_API_KEY",
+            "OPENAI_API_KEY",
             "GOOGLE_CALENDAR_ID",
             "GOOGLE_SERVICE_ACCOUNT_B64",
             "DATABASE_URL",
@@ -31,7 +31,7 @@ class Config:
             sys.exit(1)
 
         self.telegram_bot_token: str = os.environ["TELEGRAM_BOT_TOKEN"]
-        self.anthropic_api_key: str = os.environ["ANTHROPIC_API_KEY"]
+        self.openai_api_key: str = os.environ["OPENAI_API_KEY"]
         self.google_calendar_id: str = os.environ["GOOGLE_CALENDAR_ID"]
 
         # ── ALLOWED_CHAT_ID (may be unset on first deploy) ──────────────
@@ -44,7 +44,7 @@ class Config:
             )
 
         # ── Optional variables with defaults ────────────────────────────
-        self.llm_model: str = os.getenv("LLM_MODEL", "claude-sonnet-4-20250514")
+        self.llm_model: str = os.getenv("LLM_MODEL", "gpt-4.1")
         self.timezone: str = os.getenv("TIMEZONE", "Asia/Singapore")
         self.morning_brief_time: str = os.getenv("MORNING_BRIEF_TIME", "08:00")
 
