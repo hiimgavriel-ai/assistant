@@ -1,0 +1,247 @@
+# 🤖 Company Assistant — Telegram Bot
+
+A production-ready Telegram bot that acts as a shared assistant inside a private 2-person company group chat. Built with Python 3.12, designed for **Railway deployment** via long polling.
+
+---
+
+## Features
+
+| Category | Commands |
+|----------|----------|
+| **Tasks** | `/task`, `/tasks`, `/done` |
+| **Second Brain** | `/note`, `/decision`, `/ask` |
+| **Calendar** | `/planevent`, `/agenda` |
+| **Scheduled** | Daily morning brief, Friday EOD summary |
+| **Utility** | `/chatid` |
+
+---
+
+## Prerequisites
+
+- **Python 3.12+**
+- **Postgres** database (Railway provides one automatically)
+- **Telegram Bot** (created via BotFather)
+- **Google Cloud** project with Calendar API enabled
+- **Anthropic API** key
+
+---
+
+## Step-by-Step Setup
+
+### 1. Create the Telegram Bot
+
+1. Open Telegram and start a chat with [@BotFather](https://t.me/BotFather).
+2. Send `/newbot` and follow the prompts. Note the **bot token**.
+3. **Turn off Group Privacy**:
+   - Send `/mybots` → select your bot → **Bot Settings** → **Group Privacy** → **Turn off**.
+   - ⚠️ **Why?** Group Privacy is ON by default, meaning the bot only sees messages that start with `/` or mention it. The "second brain" feature needs to see _all_ messages to log them. Turning it OFF lets the bot receive every message in the group.
+
+### 2. Get an Anthropic API Key
+
+1. Go to [console.anthropic.com](https://console.anthropic.com/) → **API Keys** → **Create Key**.
+2. Copy the key — this becomes `ANTHROPIC_API_KEY`.
+
+### 3. Set Up Google Calendar
+
+#### a) Create a Google Cloud Project & Enable the API
+
+1. Go to [console.cloud.google.com](https://console.cloud.google.com/).
+2. Create a new project (or select an existing one).
+3. Navigate to **APIs & Services** → **Library**.
+4. Search for **Google Calendar API** and click **Enable**.
+
+#### b) Create a Service Account
+
+1. Go to **APIs & Services** → **Credentials** → **Create Credentials** → **Service Account**.
+2. Give it a name (e.g. `calendar-bot`), click **Create and Continue**, skip the optional steps, click **Done**.
+3. Click on the newly created service account → **Keys** tab → **Add Key** → **Create new key** → **JSON**.
+4. A `.json` file will download — this is your service-account key.
+
+#### c) Base64-Encode the Key
+
+```bash
+# macOS / Linux
+base64 -i service-account-key.json | tr -d '\n'
+```
+
+Copy the output — this becomes `GOOGLE_SERVICE_ACCOUNT_B64`.
+
+#### d) Share the Calendar
+
+1. Open [Google Calendar](https://calendar.google.com/) → find the target calendar → ⋮ → **Settings and sharing**.
+2. Under **Share with specific people or groups**, click **Add people and groups**.
+3. Paste the service account email (looks like `calendar-bot@your-project.iam.gserviceaccount.com`).
+4. Set permission to **Make changes to events**.
+5. The **Calendar ID** is on the same settings page under "Integrate calendar" (e.g. `abc123@group.calendar.google.com`) — this becomes `GOOGLE_CALENDAR_ID`.
+
+### 4. Deploy on Railway
+
+1. Push this repository to GitHub.
+2. Go to [railway.app](https://railway.app/) → **New Project** → **Deploy from GitHub repo** → select this repo.
+3. Add a **Postgres** database:
+   - Click **+ New** → **Database** → **PostgreSQL**.
+   - Railway automatically injects `DATABASE_URL` into your service's environment.
+4. Set the remaining environment variables in the service's **Variables** tab:
+
+   | Variable | Value |
+   |----------|-------|
+   | `TELEGRAM_BOT_TOKEN` | From BotFather |
+   | `ALLOWED_CHAT_ID` | Leave blank for now (see first-run flow below) |
+   | `ANTHROPIC_API_KEY` | From Anthropic console |
+   | `GOOGLE_CALENDAR_ID` | From Google Calendar settings |
+   | `GOOGLE_SERVICE_ACCOUNT_B64` | Base64-encoded service-account JSON |
+   | `LLM_MODEL` | _(optional)_ Default: `claude-sonnet-4-20250514` |
+   | `TIMEZONE` | _(optional)_ Default: `Asia/Singapore` |
+   | `MORNING_BRIEF_TIME` | _(optional)_ Default: `08:00` |
+
+5. Ensure the **Procfile** is detected. Railway will run `worker: python main.py` (no web server needed).
+
+### 5. First-Run Flow
+
+1. **Deploy** the service with `ALLOWED_CHAT_ID` unset.
+2. **Add the bot** to your private group chat.
+3. Send `/chatid` in the group. The bot will reply with the chat's integer ID.
+4. Copy that ID → go to Railway → **Variables** → set `ALLOWED_CHAT_ID` to the value.
+5. **Redeploy** (Railway usually auto-redeploys on variable change).
+6. The bot is now locked to your group and all features are active.
+
+---
+
+## Environment Variables Reference
+
+| Variable | Required | Default | Purpose |
+|----------|----------|---------|---------|
+| `TELEGRAM_BOT_TOKEN` | ✅ | — | Bot token from BotFather |
+| `ALLOWED_CHAT_ID` | ✅* | — | Integer chat ID of the allowed group |
+| `ANTHROPIC_API_KEY` | ✅ | — | Anthropic API key for LLM calls |
+| `GOOGLE_CALENDAR_ID` | ✅ | — | Target Google Calendar ID |
+| `GOOGLE_SERVICE_ACCOUNT_B64` | ✅ | — | Base64-encoded service-account JSON key |
+| `DATABASE_URL` | ✅ | — | Postgres connection string (Railway auto-injects) |
+| `LLM_MODEL` | ❌ | `claude-sonnet-4-20250514` | Anthropic model identifier |
+| `TIMEZONE` | ❌ | `Asia/Singapore` | IANA timezone for scheduling |
+| `MORNING_BRIEF_TIME` | ❌ | `08:00` | HH:MM 24h local time for the morning brief |
+
+\* `ALLOWED_CHAT_ID` may be unset on the first deploy so you can discover it via `/chatid`.
+
+---
+
+## Commands Reference
+
+### Utility
+
+```
+/chatid
+```
+Replies with the current chat's integer ID. Works in any chat, even before the whitelist is configured.
+
+### Tasks
+
+```
+/task Buy new domain for the project
+```
+Creates a new task from the given text.
+
+```
+(reply to any message with)
+/task
+```
+Promotes the replied-to message into a task.
+
+```
+/tasks
+```
+Lists all open tasks with ✅ Done buttons. Tap a button to mark the task done.
+
+```
+/done 7
+```
+Marks task #7 as done (text fallback for the button).
+
+### Second Brain
+
+```
+/note We agreed to use Stripe for payments
+```
+Saves a high-signal note.
+
+```
+/decision Go with the 3-month timeline
+```
+Records a decision.
+
+```
+/ask What payment provider did we choose?
+```
+Answers a question using stored chat history, notes, and decisions via Claude.
+
+### Calendar
+
+```
+/planevent 30 July 2026 CCK Secondary Workshop 3pm
+```
+Parses the free text into a calendar event, shows a preview, and lets you confirm or cancel.
+
+```
+/agenda              # rest of today
+/agenda tomorrow     # tomorrow's events
+/agenda week         # next 7 days
+```
+
+### Scheduled Briefs
+
+- **Daily** at `MORNING_BRIEF_TIME`: Today's calendar events + open tasks.
+- **Friday 17:00**: Open tasks going into next week.
+
+---
+
+## Local Development
+
+```bash
+# 1. Clone and install
+git clone <repo-url> && cd telegram-assistant-bot
+python3.12 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+
+# 2. Configure
+cp .env.example .env
+# Fill in all values in .env
+
+# 3. Run
+python main.py
+```
+
+You'll need a running Postgres instance. You can use Docker:
+
+```bash
+docker run --name botdb -e POSTGRES_PASSWORD=pass -p 5432:5432 -d postgres:16
+# Set DATABASE_URL=postgresql://postgres:pass@localhost:5432/postgres in .env
+```
+
+---
+
+## Project Structure
+
+```
+main.py                 # Entrypoint: config, app setup, handlers, JobQueue, polling
+config.py               # Load + validate env vars
+db.py                   # SQLAlchemy engine/session, table creation
+models.py               # ORM models (tasks, messages_log, notes)
+llm.py                  # Anthropic SDK: answer_question, parse_event
+gcal.py                 # Google Calendar: create_event, list_events
+handlers/
+  __init__.py           # safe_handler error-wrapping decorator
+  security.py           # Whitelist guard + /chatid
+  tasks.py              # /task, /tasks, /done, done-button callback
+  brain.py              # Message logging, /ask, /note, /decision
+  calendar.py           # /planevent (+ confirm/cancel), /agenda
+  briefs.py             # JobQueue morning + Friday briefs
+requirements.txt        # Pinned dependencies
+Procfile                # Railway worker process
+.env.example            # Template with all env vars
+```
+
+---
+
+## License
+
+Private — internal company use.
