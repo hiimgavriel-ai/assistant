@@ -12,7 +12,8 @@ A production-ready Telegram bot that acts as a shared assistant inside a private
 | **Second Brain** | `/note`, `/decision`, `/ask` |
 | **Calendar** | `/planevent`, `/agenda` |
 | **Scheduled** | Daily morning brief, Friday EOD summary |
-| **Utility** | `/chatid` |
+| **Utility** | `/chatid`, `/help` |
+| **Auto** | Welcome message for new members |
 
 ---
 
@@ -134,6 +135,11 @@ Copy the output — this becomes `GOOGLE_SERVICE_ACCOUNT_B64`.
 ```
 Replies with the current chat's integer ID. Works in any chat, even before the whitelist is configured.
 
+```
+/help
+```
+Shows a formatted list of all commands grouped by feature.
+
 ### Tasks
 
 ```
@@ -192,6 +198,10 @@ Parses the free text into a calendar event, shows a preview, and lets you confir
 - **Daily** at `MORNING_BRIEF_TIME`: Today's calendar events + open tasks.
 - **Friday 17:00**: Open tasks going into next week.
 
+### Auto-Welcome
+
+When a new human member joins the allowed group, the bot sends a short welcome greeting with their name and a pointer to `/help`. Bot joins are silently ignored.
+
 ---
 
 ## Local Development
@@ -226,11 +236,11 @@ main.py                 # Entrypoint: config, app setup, handlers, JobQueue, pol
 config.py               # Load + validate env vars
 db.py                   # SQLAlchemy engine/session, table creation
 models.py               # ORM models (tasks, messages_log, notes)
-llm.py                  # Anthropic SDK: answer_question, parse_event
+llm.py                  # OpenAI SDK: answer_question, parse_event
 gcal.py                 # Google Calendar: create_event, list_events
 handlers/
   __init__.py           # safe_handler error-wrapping decorator
-  security.py           # Whitelist guard + /chatid
+  security.py           # Whitelist guard, /chatid, /help, welcome message
   tasks.py              # /task, /tasks, /done, done-button callback
   brain.py              # Message logging, /ask, /note, /decision
   calendar.py           # /planevent (+ confirm/cancel), /agenda

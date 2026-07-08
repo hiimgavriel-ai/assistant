@@ -55,7 +55,7 @@ def main() -> None:
     app = Application.builder().token(config.telegram_bot_token).build()
 
     # ── 4. Register handlers ────────────────────────────────────────
-    from handlers.security import chatid_cmd
+    from handlers.security import chatid_cmd, help_cmd, welcome_new_member
     from handlers.tasks import (
         done_cmd,
         task_cmd,
@@ -85,11 +85,15 @@ def main() -> None:
     app.add_handler(CommandHandler("ask", ask_cmd))
     app.add_handler(CommandHandler("planevent", planevent_cmd))
     app.add_handler(CommandHandler("agenda", agenda_cmd))
+    app.add_handler(CommandHandler("help", help_cmd))
 
     # Inline-button callbacks
     app.add_handler(CallbackQueryHandler(task_done_callback, pattern=r"^task_done:"))
     app.add_handler(CallbackQueryHandler(event_confirm_callback, pattern=r"^evt_create:"))
     app.add_handler(CallbackQueryHandler(event_cancel_callback, pattern=r"^evt_cancel:"))
+
+    # New-member welcome (group 0)
+    app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_member))
 
     # Group 1 — message logger (non-command text only)
     app.add_handler(
