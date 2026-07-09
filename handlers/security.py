@@ -104,6 +104,9 @@ _HELP_TEXT = (
     "(e.g. <code>/planevent CCK workshop 30 July 3pm</code>)\n"
     "<code>/agenda</code> — What's coming up "
     '(add "tomorrow" or "week")\n'
+    "\n"
+    "📸 <b>Photos</b>\n"
+    "<code>/photodump</code> — Collect event photos into a Google Drive folder\n"
 )
 
 

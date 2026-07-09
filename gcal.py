@@ -21,7 +21,10 @@ def init_gcal(config: Config) -> None:
 
     credentials = service_account.Credentials.from_service_account_info(
         config.google_service_account_info,
-        scopes=["https://www.googleapis.com/auth/calendar.events"],
+        scopes=[
+            "https://www.googleapis.com/auth/calendar.events",
+            "https://www.googleapis.com/auth/drive.file",
+        ],
     )
     _service = build("calendar", "v3", credentials=credentials)
     _calendar_id = config.google_calendar_id

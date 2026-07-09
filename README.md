@@ -11,6 +11,7 @@ A production-ready Telegram bot that acts as a shared assistant inside a private
 | **Tasks** | `/add`, `/list`, `/done`, `/braindump` |
 | **Memory** | `/note`, `/ask` |
 | **Calendar** | `/planevent`, `/agenda` |
+| **Photos** | `/photodump`, `/finish` |
 | **Scheduled** | Daily morning brief, Friday EOD summary |
 | **Utility** | `/chatid`, `/help` |
 | **Auto** | Welcome message for new members |
@@ -22,8 +23,9 @@ A production-ready Telegram bot that acts as a shared assistant inside a private
 - **Python 3.12+**
 - **Postgres** database (Railway provides one automatically)
 - **Telegram Bot** (created via BotFather)
-- **Google Cloud** project with Calendar API enabled
+- **Google Cloud** project with Calendar API and Drive API enabled
 - **OpenAI API** key
+- **Google Drive** folder shared with the service account (for `/photodump`)
 
 ---
 
@@ -121,6 +123,7 @@ Copy the output — this becomes `GOOGLE_SERVICE_ACCOUNT_B64`.
 | `LLM_MODEL` | ❌ | `gpt-4.1` | OpenAI model identifier |
 | `TIMEZONE` | ❌ | `Asia/Singapore` | IANA timezone for scheduling |
 | `MORNING_BRIEF_TIME` | ❌ | `08:00` | HH:MM 24h local time for the morning brief |
+| `GDRIVE_PARENT_FOLDER_ID` | ❌ | — | Google Drive folder ID for `/photodump` |
 
 \* `ALLOWED_CHAT_ID` may be unset on the first deploy so you can discover it via `/chatid`.
 
@@ -175,6 +178,15 @@ Parses the free text into a calendar event, shows a preview, and lets you confir
 /agenda week         # next 7 days
 ```
 
+### Photos
+
+```
+/photodump
+```
+Starts a photo collection session. The bot asks for an event name, creates a Google Drive folder, then collects every photo you send — uploading it to Drive and deleting the message from the chat. Send `/finish` to end the session and get a summary with the folder link.
+
+> **Note:** The bot must be a group admin with "Delete messages" permission for auto-deletion to work. If it isn't, photos are still uploaded but remain in the chat.
+
 ### Scheduled Briefs
 
 - **Daily** at `MORNING_BRIEF_TIME`: Today's calendar events + open tasks.
@@ -220,12 +232,14 @@ db.py                   # SQLAlchemy engine/session, table creation
 models.py               # ORM models (tasks, messages_log, notes)
 llm.py                  # OpenAI SDK: answer_question, parse_event, extract_tasks
 gcal.py                 # Google Calendar: create_event, list_events
+gdrive.py               # Google Drive: create_folder, upload_file
 handlers/
   __init__.py           # safe_handler error-wrapping decorator
   security.py           # Whitelist guard, /chatid, /help, welcome message
   tasks.py              # /add, /list, /done, /braindump + callbacks
   brain.py              # Message logging, /ask, /note
   calendar.py           # /planevent (+ confirm/cancel), /agenda
+  photos.py             # /photodump, photo collection, /finish
   briefs.py             # JobQueue morning + Friday briefs
 requirements.txt        # Pinned dependencies
 Procfile                # Railway worker process

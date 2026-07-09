@@ -36,6 +36,7 @@ async def post_init(application) -> None:
             BotCommand("ask", "Ask about history or upcoming events"),
             BotCommand("planevent", "Add a calendar event"),
             BotCommand("agenda", "What's coming up"),
+            BotCommand("photodump", "Collect event photos into Drive"),
         ]
     )
     logger.info("Bot command menu set via set_my_commands.")
@@ -60,6 +61,10 @@ def main() -> None:
 
     init_gcal(config)
 
+    from gdrive import init_gdrive
+
+    init_gdrive(config)
+
     from handlers.security import init_security
 
     init_security(config)
@@ -71,6 +76,10 @@ def main() -> None:
     from handlers.brain import init_brain
 
     init_brain(config)
+
+    from handlers.photos import init_photos
+
+    init_photos(config)
 
     # ── 3. Build the Application ────────────────────────────────────
     app = (
@@ -102,6 +111,13 @@ def main() -> None:
         event_confirm_callback,
         planevent_cmd,
     )
+    from handlers.photos import (
+        finish_cmd,
+        photodump_cmd,
+        receive_document_photo,
+        receive_event_name,
+        receive_photo,
+    )
 
     # Group 0 — command handlers
     app.add_handler(CommandHandler("chatid", chatid_cmd))
@@ -114,6 +130,9 @@ def main() -> None:
     app.add_handler(CommandHandler("agenda", agenda_cmd))
     app.add_handler(CommandHandler("help", help_cmd))
     app.add_handler(CommandHandler("braindump", braindump_cmd))
+    app.add_handler(CommandHandler("photodump", photodump_cmd))
+    app.add_handler(CommandHandler("finish", finish_cmd))
+    app.add_handler(CommandHandler("done_dump", finish_cmd))
 
     # Inline-button callbacks
     app.add_handler(CallbackQueryHandler(task_done_callback, pattern=r"^task_done:"))
@@ -122,10 +141,18 @@ def main() -> None:
     app.add_handler(CallbackQueryHandler(braindump_save_callback, pattern=r"^bd_save:"))
     app.add_handler(CallbackQueryHandler(braindump_cancel_callback, pattern=r"^bd_cancel:"))
 
-    # New-member welcome (group 0)
+    # New-member welcome
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_member))
 
-    # Group 1 — message logger (non-command text only)
+    # Photo/document handlers for photodump (group 0, after commands)
+    app.add_handler(MessageHandler(filters.PHOTO, receive_photo))
+    app.add_handler(MessageHandler(filters.Document.ALL, receive_document_photo))
+
+    # Text handler for photodump event name (group 0, registered last so
+    # CommandHandlers take priority; checks state and returns early if idle)
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, receive_event_name))
+
+    # Group 1 — message logger (non-command text only, fires independently)
     app.add_handler(
         MessageHandler(filters.TEXT & ~filters.COMMAND, log_message),
         group=1,

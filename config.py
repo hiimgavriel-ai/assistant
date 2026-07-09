@@ -47,6 +47,7 @@ class Config:
         self.llm_model: str = os.getenv("LLM_MODEL", "gpt-4.1")
         self.timezone: str = os.getenv("TIMEZONE", "Asia/Singapore")
         self.morning_brief_time: str = os.getenv("MORNING_BRIEF_TIME", "08:00")
+        self.gdrive_parent_folder_id: str | None = os.getenv("GDRIVE_PARENT_FOLDER_ID")
 
         # ── Google service-account JSON (base64-encoded) ────────────────
         sa_b64 = os.environ["GOOGLE_SERVICE_ACCOUNT_B64"]
