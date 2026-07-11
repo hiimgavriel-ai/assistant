@@ -43,7 +43,7 @@ def create_folder(name: str, parent_id: str) -> tuple[str, str]:
     }
     folder = (
         _service.files()
-        .create(body=metadata, fields="id, webViewLink")
+        .create(body=metadata, fields="id, webViewLink", supportsAllDrives=True)
         .execute()
     )
     logger.info("Created Drive folder '%s' (id=%s).", name, folder["id"])
@@ -67,7 +67,7 @@ def upload_file(
     media = MediaInMemoryUpload(file_bytes, mimetype=mime_type)
     result = (
         _service.files()
-        .create(body=metadata, media_body=media, fields="id")
+        .create(body=metadata, media_body=media, fields="id", supportsAllDrives=True)
         .execute()
     )
     logger.info("Uploaded '%s' to folder %s (file_id=%s).", filename, folder_id, result["id"])

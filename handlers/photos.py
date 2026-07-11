@@ -9,7 +9,7 @@ from telegram.ext import ContextTypes
 import gdrive
 from config import Config
 from handlers import safe_handler
-from handlers.security import whitelist_only
+from handlers.security import _allowed_chat_id, whitelist_only
 
 logger = logging.getLogger(__name__)
 
@@ -72,13 +72,15 @@ async def photodump_cmd(
 
 
 @safe_handler
-@whitelist_only
 async def receive_event_name(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
     """Handle the next text message as the event name."""
+    # Quick bail — completely silent when no photodump session is active
     if context.chat_data.get(_STATE) != _AWAITING_NAME:
-        return  # not in photodump flow — pass through
+        return
+    if _allowed_chat_id is not None and update.effective_chat.id != _allowed_chat_id:
+        return
 
     event_name = update.message.text.strip()
     if not event_name:
@@ -114,12 +116,14 @@ async def receive_event_name(
 
 
 @safe_handler
-@whitelist_only
 async def receive_photo(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
     """Upload a photo to the active Drive folder."""
+    # Quick bail — completely silent when no photodump session is active
     if context.chat_data.get(_STATE) != _COLLECTING:
+        return
+    if _allowed_chat_id is not None and update.effective_chat.id != _allowed_chat_id:
         return
 
     folder_id = context.chat_data[_FOLDER_ID]
@@ -156,12 +160,14 @@ async def receive_photo(
 
 
 @safe_handler
-@whitelist_only
 async def receive_document_photo(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
     """Upload a document-type image to the active Drive folder."""
+    # Quick bail — completely silent when no photodump session is active
     if context.chat_data.get(_STATE) != _COLLECTING:
+        return
+    if _allowed_chat_id is not None and update.effective_chat.id != _allowed_chat_id:
         return
 
     doc = update.message.document
